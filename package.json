@@ -1,7 +1,8 @@
 {
-  "name": "imc-linux-port",
+  "name": "intel-amt-linux",
   "version": "0.1.0",
-  "description": "Intel Manageability Commander — Linux port",
+  "description": "Native Linux GUI + CLI for Intel AMT / vPro out-of-band management — unofficial Linux launcher for Intel Manageability Commander. MeshCommander alternative.",
+  "keywords": ["intel-amt", "amt", "vpro", "active-management-technology", "out-of-band", "linux", "kvm", "serial-over-lan", "wsman", "ider", "remote-management", "meshcommander", "ipmi-alternative", "ilo-alternative"],
   "private": true,
   "scripts": {
     "setup": "bash scripts/setup.sh",

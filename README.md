@@ -1,10 +1,18 @@
-# Intel Manageability Commander — Linux Port
+# intel-amt-linux
 
-Runs Intel's official AMT management GUI natively on Linux. No Windows. No VM.
+Native Linux GUI + CLI for Intel AMT / vPro out-of-band management. No Windows. No VM.
 
-Intel IMC is the only GUI tool that exposes the full Intel AMT/vPro feature set —
-power control, SOL console, IDER (virtual media boot), KVM, audit log, WiFi, TLS
-provisioning. Intel never released a Linux build. This port fixes that.
+The only Linux-native launcher for Intel® Manageability Commander — the one GUI that
+exposes the full Intel AMT / vPro feature set: power control, SOL console, IDER
+(virtual media boot), KVM, audit log, WiFi, TLS provisioning. Intel never shipped a
+Linux build. This port fixes that. Also includes `amt-net` CLI for scripting
+AMT_EthernetPortSettings (DHCP / static IP) via WS-Man.
+
+MeshCommander alternative for Linux. Works where `amttool` and `wsmancli` break (AMT ≥ 9.0).
+
+> **Not affiliated with or endorsed by Intel Corporation.**
+> Intel®, Intel vPro®, and Intel® Manageability Commander are trademarks of Intel
+> Corporation or its subsidiaries.
 
 ## Compatible Hardware
 
@@ -69,8 +77,8 @@ AMT Implementation Guide §6–7 — we implemented it directly in ~350 lines of
 ## Quick Start
 
 ```bash
-git clone https://github.com/88plug/imc-linux-port
-cd imc-linux-port
+git clone https://github.com/88plug/intel-amt-linux
+cd intel-amt-linux
 npm run setup    # downloads IMC from Intel, installs deps, applies Linux patches
 npm start        # launches IMC natively
 ```
@@ -136,9 +144,12 @@ src/
 │   ├── amt-ider.js       # IDER protocol: SCSI handler + disk image serving
 │   │                     # Handles READ10, INQUIRY, MODE_SENSE, READ_CAPACITY, READ_TOC
 │   └── index.js          # Sync API wrapper (deasync) — matches imrsdk.node contract
-└── stubs/
-    └── krb-ticket/
-        └── index.js      # Kerberos stub: retCode:1, falls back to digest auth
+├── stubs/
+│   └── krb-ticket/
+│       └── index.js      # Kerberos stub: retCode:1, falls back to digest auth
+└── tools/
+    └── amt-net.js        # CLI: read/write AMT_EthernetPortSettings via WS-Man
+                          # Usage: node amt-net.js <get|dhcp|static> <host> <user> <pass>
 ```
 
 ## Feature Status
@@ -155,9 +166,40 @@ src/
 | WiFi profile management | ✅ Full |
 | KVM remote desktop | ⚠️ CCM mode requires user consent; ACM mode = full access |
 | Kerberos domain auth | ❌ Windows only — digest auth works |
-| Windows registry credential storage | ❌ Windows only — credentials cleared on exit |
+| Windows registry credential storage | ❌ Replaced — OS keyring via `safeStorage` (see credential vault below) |
+
+## Credential Vault
+
+Passwords are encrypted with the OS keyring (libsecret / KWallet / macOS Keychain) via
+Electron's `safeStorage` API. When you connect to an AMT host, a "Remember credentials"
+checkbox appears in the auth dialog — check it and credentials auto-fill on next launch.
+No plaintext storage. Falls back gracefully if no keyring is available.
+
+## AMT Network CLI
+
+`src/tools/amt-net.js` — standalone WS-Man tool for reading and scripting AMT NIC config:
+
+```bash
+# Read current settings
+node src/tools/amt-net.js get 192.168.1.106 admin <pass>
+
+# Switch AMT NIC to DHCP
+node src/tools/amt-net.js dhcp 192.168.1.106 admin <pass>
+
+# Set static IP
+node src/tools/amt-net.js static 192.168.1.106 admin <pass> 10.0.0.5 255.255.255.0 10.0.0.1 8.8.8.8
+
+# TLS (port 16993)
+node src/tools/amt-net.js get 192.168.1.106 admin <pass> --tls
+```
 
 ## License
 
 Our code (this repo): MIT — see [LICENSE](LICENSE).
-Intel Manageability Commander: proprietary Intel software, downloaded from Intel's servers.
+Intel® Manageability Commander: proprietary Intel software, downloaded from Intel's servers at setup time.
+
+## Topics
+
+`intel-amt` `amt` `vpro` `active-management-technology` `out-of-band` `linux` `gui`
+`remote-management` `kvm` `serial-over-lan` `wsman` `ider` `mei` `lms`
+`meshcommander` `manageability-commander` `ipmi-alternative` `ilo-alternative`
