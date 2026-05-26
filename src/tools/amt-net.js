@@ -155,9 +155,16 @@ const pass  = args[3];
 const tls   = args.includes('--tls');
 const opts  = { host, user, pass, tls };
 
+if (cmd === '--version' || cmd === '-v') {
+    const { version } = require('../../package.json');
+    console.log(`amt-net.js ${version}`);
+    process.exit(0);
+}
+
 if (!cmd || !host || !user || !pass) {
     console.error('Usage: node amt-net.js <get|dhcp|static> <host> <user> <pass> [options]');
     console.error('  static: ... <ip> <mask> <gw> <dns1> [dns2] [--tls]');
+    console.error('  --version  print version and exit');
     process.exit(1);
 }
 
