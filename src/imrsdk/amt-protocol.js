@@ -66,9 +66,13 @@ module.exports = function createAmtProtocol(opts) {
     }
 
     function httpPost(auth) {
+        // RFC 2732: IPv6 literals in Host header must be bracketed
+        const hostHeader = net.isIPv6(opts.host)
+            ? `[${opts.host}]:${opts.port}`
+            : `${opts.host}:${opts.port}`;
         const headers = [
             `${METHOD} ${URI} HTTP/1.1`,
-            `Host: ${opts.host}:${opts.port}`,
+            `Host: ${hostHeader}`,
             'Content-Length: 0',
             auth ? `Authorization: ${auth}` : null,
             '\r\n',
@@ -128,14 +132,35 @@ module.exports = function createAmtProtocol(opts) {
 
     obj.connect = function() {
         obj.state = S_HTTP;
-        const tlsOpts = { host: opts.host, port: opts.port, rejectUnauthorized: false };
-        obj.socket = opts.tls
-            ? tls.connect(tlsOpts, () => httpPost(null))
-            : net.createConnection({ host: opts.host, port: opts.port }, () => httpPost(null));
 
-        obj.socket.on('data',  onData);
-        obj.socket.on('close', () => close(null));
-        obj.socket.on('error', e  => close(e.message));
+        function doConnect() {
+            if (opts.tls) {
+                const tlsOpts = { host: opts.host, port: opts.port, rejectUnauthorized: false };
+                // TLS SNI requires a hostname — IP literals (IPv4 and IPv6) must not set servername
+                if (!net.isIP(opts.host)) tlsOpts.servername = opts.host;
+                obj.socket = tls.connect(tlsOpts, () => httpPost(null));
+            } else {
+                obj.socket = net.createConnection({ host: opts.host, port: opts.port }, () => httpPost(null));
+            }
+
+            obj.socket.on('data',  onData);
+            obj.socket.on('close', () => close(null));
+            obj.socket.on('error', function(e) {
+                // CSME 16.1+ (Alder Lake+) dropped cleartext port 16994 — auto-upgrade to TLS
+                if (!opts.tls && opts.port === 16994 && e.code === 'ECONNREFUSED') {
+                    obj.socket.destroy();
+                    obj.socket = null;
+                    obj.state  = S_HTTP;
+                    opts.tls  = true;
+                    opts.port = 16995;
+                    doConnect();
+                    return;
+                }
+                close(e.message);
+            });
+        }
+
+        doConnect();
     };
 
     obj.send  = send;
