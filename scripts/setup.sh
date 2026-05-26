@@ -89,25 +89,21 @@ npm install level requirejs requirejs-text winston --no-audit 2>/dev/null | tail
 echo "[6/6] Installing @electron/remote and patching main-electron.js..."
 npm install --prefix "$APP_DIR" @electron/remote --no-audit 2>/dev/null | tail -1 || true
 
-# Write preload shim: re-exposes @electron/remote as require('electron').remote
-cat > "$APP_DIR/preload.js" << 'PRELOAD'
-'use strict';
-const remote = require('@electron/remote');
-Object.defineProperty(require('electron'), 'remote', { get: () => remote });
-PRELOAD
+# Write preload: @electron/remote shim + credential vault hooks
+cp "$REPO/src/preload.js" "$APP_DIR/preload.js"
 
 if ! grep -q "@electron/remote" "$APP_DIR/main-electron.js" 2>/dev/null; then
     sed -i '/tls-min-v1.1/d' "$APP_DIR/main-electron.js"
     sed -i '/enableRemoteModule/d' "$APP_DIR/main-electron.js"
-    sed -i "s|const { app, BrowserWindow } = require('electron');|const { app, BrowserWindow } = require('electron');\nconst remoteMain = require('@electron/remote/main');\nremoteMain.initialize();|" \
+    sed -i "s|const { app, BrowserWindow } = require('electron');|const { app, BrowserWindow, ipcMain, safeStorage } = require('electron');\nconst fs = require('fs');\nconst path = require('path');\nconst remoteMain = require('@electron/remote/main');\nremoteMain.initialize();\nfunction vaultPath(){ return path.join(app.getPath('userData'),'amtvault.json'); }\nfunction vaultRead(){ try{return JSON.parse(fs.readFileSync(vaultPath(),'utf8'));}catch(e){return{};} }\nfunction vaultWrite(d){ fs.writeFileSync(vaultPath(),JSON.stringify(d)); }\nipcMain.handle('vault:save',(_ev,h,u,p)=>{ if(!safeStorage.isEncryptionAvailable())return false; const v=vaultRead(); v[h]={u,p:safeStorage.encryptString(p).toString('base64')}; vaultWrite(v); return true; });\nipcMain.handle('vault:load',(_ev,h)=>{ if(!safeStorage.isEncryptionAvailable())return null; const v=vaultRead(); const e=v[h]; if(!e)return null; try{return{user:e.u,pass:safeStorage.decryptString(Buffer.from(e.p,'base64'))};}catch(_){return null;} });\nipcMain.handle('vault:delete',(_ev,h)=>{ const v=vaultRead(); delete v[h]; vaultWrite(v); return true; });|" \
         "$APP_DIR/main-electron.js"
     sed -i "s|nodeIntegration: true,|nodeIntegration: true,\n            contextIsolation: false,\n            preload: require('path').join(__dirname, 'preload.js'),|" \
         "$APP_DIR/main-electron.js"
     sed -i "s|win.removeMenu();|remoteMain.enable(win.webContents);\n    win.removeMenu();|" \
         "$APP_DIR/main-electron.js"
-    echo "      Patched: Electron 28 + @electron/remote shim"
+    echo "      Patched: Electron 28 + @electron/remote shim + credential vault IPC"
 else
-    echo "      Already patched"
+    echo "      Already patched (re-copied preload.js)"
 fi
 
 echo ""
