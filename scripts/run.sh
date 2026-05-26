@@ -34,7 +34,7 @@ case "$MODE" in
         docker run --rm -it \
             --network host \
             -p 5900:5900 \
-            imc-linux-xvfb
+            imc-linux
         ;;
     native|*)
         # Auto-start LMS if MEI present and LMS not already running

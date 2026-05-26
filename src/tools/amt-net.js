@@ -29,18 +29,27 @@ let _nc = 1;
 
 function md5(s) { return crypto.createHash('md5').update(s).digest('hex'); }
 
-function digestHeader(method, path, user, pass, wwwAuth) {
+function parseDigestChallenge(wwwAuth) {
     const fields = {};
-    const re = /(\w+)="?([^",\s]+)"?/g;
+    // Handle both quoted ("value") and unquoted (value) forms per RFC 2617
+    const re = /(\w+)=(?:"([^"]*)"|([^,\s]+))/g;
     let m;
-    while ((m = re.exec(wwwAuth)) !== null) fields[m[1]] = m[2];
+    while ((m = re.exec(wwwAuth)) !== null) fields[m[1]] = m[2] !== undefined ? m[2] : m[3];
+    return fields;
+}
+
+function digestHeader(method, path, user, pass, wwwAuth) {
+    const fields = parseDigestChallenge(wwwAuth);
     const nc     = String(_nc++).padStart(8, '0');
     const cnonce = crypto.randomBytes(4).toString('hex');
     const ha1    = md5(`${user}:${fields.realm}:${pass}`);
     const ha2    = md5(`${method}:${path}`);
-    const resp   = md5(`${ha1}:${fields.nonce}:${nc}:${cnonce}:${fields.qop}:${ha2}`);
-    return `Digest username="${user}", realm="${fields.realm}", nonce="${fields.nonce}", ` +
-           `uri="${path}", qop=${fields.qop}, nc=${nc}, cnonce="${cnonce}", response="${resp}"`;
+    // RFC 2617: if qop absent, legacy response = md5(HA1:nonce:HA2)
+    const resp   = fields.qop
+        ? md5(`${ha1}:${fields.nonce}:${nc}:${cnonce}:${fields.qop}:${ha2}`)
+        : md5(`${ha1}:${fields.nonce}:${ha2}`);
+    const base = `Digest username="${user}", realm="${fields.realm}", nonce="${fields.nonce}", uri="${path}", response="${resp}"`;
+    return fields.qop ? `${base}, qop=${fields.qop}, nc=${nc}, cnonce="${cnonce}"` : base;
 }
 
 function wsmanEnvelope(action, body, extra) {
@@ -84,6 +93,7 @@ function request(opts, body, auth) {
             res.on('data', c => { data += c; });
             res.on('end',  () => resolve({ status: res.statusCode, headers: res.headers, body: data }));
         });
+        req.setTimeout(30000, () => { req.destroy(new Error('Request timeout')); });
         req.on('error', reject);
         req.write(body);
         req.end();
@@ -101,8 +111,14 @@ async function wsmanCall(opts, action, body, extra) {
     return r;
 }
 
+function xmlEscape(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                    .replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+}
+
 function extractTag(xml, tag) {
-    const re = new RegExp(`<[^:>]*:?${tag}[^>]*>(.*?)<\/[^:>]*:?${tag}>`, 's');
+    // \b word-boundary prevents 'IPAddress' matching inside 'OldIPAddress'
+    const re = new RegExp(`<[^:>]*:?${tag}\\b[^>]*>(.*?)<\\/[^:>]*:?${tag}>`, 's');
     const m = xml.match(re);
     return m ? m[1].trim() : null;
 }
@@ -118,7 +134,7 @@ function buildPutBody(fields) {
     const tag = 'AMT_EthernetPortSettings';
     let inner = '';
     for (const [k, v] of Object.entries(fields)) {
-        inner += `\n      <r:${k}>${v}</r:${k}>`;
+        inner += `\n      <r:${k}>${xmlEscape(v)}</r:${k}>`;
     }
     return `<r:${tag} xmlns:r="${ns}">${inner}\n    </r:${tag}>`;
 }

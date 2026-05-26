@@ -46,7 +46,7 @@ function iderHdr(seq, payloadLen) {
     const hdr = Buffer.alloc(8);
     hdr[0] = IDER_RESPONSE_TO_AMT;
     hdr[1] = 0x00;
-    hdr.writeUInt16BE(seq >> 16, 2);
+    hdr.writeUInt16BE((seq >>> 16) & 0xffff, 2);
     hdr.writeUInt16BE(seq & 0xffff, 4);
     hdr.writeUInt16BE(payloadLen, 6);
     return hdr;
@@ -85,7 +85,11 @@ module.exports = function createIder(imgPath, isoPath, timing) {
 
     function readSectors(fd, lba, count, sectorSize) {
         const buf = Buffer.alloc(count * sectorSize);
-        try { fs.readSync(fd, buf, 0, buf.length, lba * sectorSize); } catch(e) {}
+        try {
+            fs.readSync(fd, buf, 0, buf.length, lba * sectorSize);
+        } catch(e) {
+            return null;  // caller sends CHECK CONDITION
+        }
         return buf;
     }
 
@@ -126,9 +130,10 @@ module.exports = function createIder(imgPath, isoPath, timing) {
             case SCSI_READ10: {
                 const lba   = u32be(cdb, 2);
                 const count = u16be(cdb, 7);
-                const data  = fd ? readSectors(fd, lba, count, sectorSz) : Buffer.alloc(count * sectorSz);
-                obj.bytesIn += data.length;
-                scsiResponse(driveIdx, 0x00, data);
+                const raw   = fd ? readSectors(fd, lba, count, sectorSz) : Buffer.alloc(count * sectorSz);
+                if (!raw) { scsiResponse(driveIdx, 0x02, Buffer.alloc(0)); break; }
+                obj.bytesIn += raw.length;
+                scsiResponse(driveIdx, 0x00, raw);
                 break;
             }
 

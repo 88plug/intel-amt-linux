@@ -91,16 +91,18 @@ module.exports = function createAmtProtocol(opts) {
             const header = str.slice(0, end);
             obj.buf = obj.buf.slice(end + 4);
 
-            if (header.includes('401')) {
+            const statusLine = header.split('\r\n')[0];
+            if (/^HTTP\/1\.\d 401\b/.test(statusLine)) {
                 // Parse Digest challenge and retry
-                const wwwLine = header.split('\r\n').find(l => l.startsWith('WWW-Authenticate:')) || '';
+                const wwwLine = header.split('\r\n')
+                    .find(l => l.toLowerCase().startsWith('www-authenticate:')) || '';
                 obj.challenge = parseDigestChallenge(wwwLine);
                 const nc = String(obj.nc++).padStart(8, '0');
                 const auth = buildDigestResponse(METHOD, URI, opts.user, opts.pass,
                                                   obj.challenge, nc, obj.cnonce);
                 obj.state = S_AUTH;
                 httpPost(auth);
-            } else if (header.includes('200')) {
+            } else if (/^HTTP\/1\.\d 200\b/.test(statusLine)) {
                 obj.state = S_OPEN;
                 // Send IDER session-start bytes
                 send(REDIR_START_IDER);
@@ -148,6 +150,9 @@ module.exports = function createAmtProtocol(opts) {
             obj.socket.on('error', function(e) {
                 // CSME 16.1+ (Alder Lake+) dropped cleartext port 16994 — auto-upgrade to TLS
                 if (!opts.tls && opts.port === 16994 && e.code === 'ECONNREFUSED') {
+                    // Remove all listeners before destroy so the 'close' event doesn't
+                    // race with the new connection and flip state to S_CLOSED.
+                    obj.socket.removeAllListeners();
                     obj.socket.destroy();
                     obj.socket = null;
                     obj.state  = S_HTTP;

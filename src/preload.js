@@ -40,12 +40,18 @@ window.addEventListener('DOMContentLoaded', () => {
         if (host) {
             ipcRenderer.invoke('vault:load', host).then((cred) => {
                 if (!cred) return;
-                if (!userInput.value) userInput.value = cred.user;
-                if (!passInput.value) passInput.value = cred.pass;
+                if (!userInput.value) {
+                    userInput.value = cred.user;
+                    userInput.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+                if (!passInput.value) {
+                    passInput.value = cred.pass;
+                    passInput.dispatchEvent(new Event('input', { bubbles: true }));
+                }
                 // Mark "Remember" checkbox as checked since we found saved creds.
                 const chk = document.getElementById('_amt-remember-cb');
                 if (chk) chk.checked = true;
-            });
+            }).catch(() => {});
         }
 
         // Inject "Remember credentials" checkbox into the auth dialog.
@@ -64,19 +70,21 @@ window.addEventListener('DOMContentLoaded', () => {
         }
 
         // Hook the dialog OK button to save credentials when "Remember" is checked.
-        // IMC uses a dialog with class "dialogButton" or similar for OK.
-        // We watch for any button click inside the auth dialog area.
+        // Scope to the OK button specifically (not Cancel) by matching button value/text.
         const authArea = passInput.closest('[id]') || passInput.closest('div');
         if (authArea) {
             authArea.addEventListener('click', (e) => {
-                const btn = e.target.closest('input[type="button"]');
-                if (!btn || btn.id === '_amt-remember-cb') return;
+                const btn = e.target.closest('input[type="button"], button');
+                if (!btn) return;
+                // Only save on OK — skip Cancel and our own checkbox
+                const btnText = (btn.value || btn.textContent || '').trim().toLowerCase();
+                if (btnText === 'cancel' || btnText === '' || btn.id === '_amt-remember-cb') return;
                 const cb = document.getElementById('_amt-remember-cb');
                 if (!cb || !cb.checked) return;
                 const h = host || _pendingHost;
                 const u = (document.getElementById('id-authDlg-username') || {}).value;
                 const p = (document.getElementById('id-authDlg-password') || {}).value;
-                if (h && u && p) ipcRenderer.invoke('vault:save', h, u, p);
+                if (h && u && p) ipcRenderer.invoke('vault:save', h, u, p).catch(() => {});
             }, true);
         }
     });
