@@ -37,6 +37,16 @@ case "$MODE" in
             imc-linux-xvfb
         ;;
     native|*)
+        # Auto-start LMS if MEI present and LMS not already running
+        if [ -e /dev/mei0 ] && ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^intel-lms$'; then
+            if docker image inspect intel-lms &>/dev/null 2>&1; then
+                echo "Starting Intel LMS (AMT local proxy)..."
+                bash "$REPO/scripts/lms.sh" start
+            else
+                echo "Tip: run 'bash scripts/lms.sh build && bash scripts/lms.sh start'"
+                echo "     to enable localhost AMT access (needed on same machine as AMT)"
+            fi
+        fi
         echo "Launching Intel Manageability Commander (native Linux)..."
         exec "$ELECTRON" "$APP_DIR" --no-sandbox
         ;;
