@@ -52,8 +52,8 @@ else
     echo "[1/6] Upstream app already present — skipping download"
 fi
 
-# ---- 2. Install Electron 13 (last version with built-in remote API) ----
-echo "[2/6] Installing Electron 13..."
+# ---- 2. Install Electron 28 ----
+echo "[2/6] Installing Electron 28..."
 cd "$REPO"
 npm install --no-audit 2>/dev/null | tail -2 || true
 
@@ -66,10 +66,10 @@ echo "[4/6] Replacing Windows-only native modules..."
 
 IMR_DEST="$APP_DIR/node_modules/imrsdk"
 mkdir -p "$IMR_DEST"
-cp "$REPO/src/imrsdk/index.js"                "$IMR_DEST/index.js"
-cp "$REPO/src/imrsdk/amt-ider-standalone.js"  "$IMR_DEST/amt-ider-standalone.js"
-cp "$REPO/src/imrsdk/amt-redir-standalone.js" "$IMR_DEST/amt-redir-standalone.js"
-cp "$REPO/src/imrsdk/package.json"            "$IMR_DEST/package.json"
+cp "$REPO/src/imrsdk/index.js"       "$IMR_DEST/index.js"
+cp "$REPO/src/imrsdk/amt-protocol.js" "$IMR_DEST/amt-protocol.js"
+cp "$REPO/src/imrsdk/amt-ider.js"    "$IMR_DEST/amt-ider.js"
+cp "$REPO/src/imrsdk/package.json"   "$IMR_DEST/package.json"
 
 KRB_DEST="$APP_DIR/node_modules/krb-ticket"
 mkdir -p "$KRB_DEST"
@@ -85,12 +85,27 @@ echo "[5/6] Installing app npm deps..."
 cd "$APP_DIR"
 npm install level requirejs requirejs-text winston --no-audit 2>/dev/null | tail -2 || true
 
-# ---- 6. Patch main-electron.js for Electron 13 ----
-echo "[6/6] Patching main-electron.js..."
-if ! grep -q "enableRemoteModule" "$APP_DIR/main-electron.js" 2>/dev/null; then
-    sed -i 's/nodeIntegration: true,/nodeIntegration: true,\n            enableRemoteModule: true,/' \
+# ---- 6. Install @electron/remote + patch main-electron.js for Electron 28 ----
+echo "[6/6] Installing @electron/remote and patching main-electron.js..."
+npm install --prefix "$APP_DIR" @electron/remote --no-audit 2>/dev/null | tail -1 || true
+
+# Write preload shim: re-exposes @electron/remote as require('electron').remote
+cat > "$APP_DIR/preload.js" << 'PRELOAD'
+'use strict';
+const remote = require('@electron/remote');
+Object.defineProperty(require('electron'), 'remote', { get: () => remote });
+PRELOAD
+
+if ! grep -q "@electron/remote" "$APP_DIR/main-electron.js" 2>/dev/null; then
+    sed -i '/tls-min-v1.1/d' "$APP_DIR/main-electron.js"
+    sed -i '/enableRemoteModule/d' "$APP_DIR/main-electron.js"
+    sed -i "s|const { app, BrowserWindow } = require('electron');|const { app, BrowserWindow } = require('electron');\nconst remoteMain = require('@electron/remote/main');\nremoteMain.initialize();|" \
         "$APP_DIR/main-electron.js"
-    echo "      Added: enableRemoteModule: true"
+    sed -i "s|nodeIntegration: true,|nodeIntegration: true,\n            contextIsolation: false,\n            preload: require('path').join(__dirname, 'preload.js'),|" \
+        "$APP_DIR/main-electron.js"
+    sed -i "s|win.removeMenu();|remoteMain.enable(win.webContents);\n    win.removeMenu();|" \
+        "$APP_DIR/main-electron.js"
+    echo "      Patched: Electron 28 + @electron/remote shim"
 else
     echo "      Already patched"
 fi

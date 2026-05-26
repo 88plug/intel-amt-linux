@@ -8,6 +8,6 @@
     "start": "bash scripts/run.sh"
   },
   "devDependencies": {
-    "electron": "^13.6.9"
+    "electron": "^28.3.3"
   }
 }
