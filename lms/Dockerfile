@@ -2,23 +2,19 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential cmake git python3 python3-pip \
-    libxml2-dev libglib2.0-dev libssl-dev \
-    libace-dev \
+# Fetch pre-built LMS 2550 deb (Ubuntu 22.04) and let apt resolve all deps
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates dbus \
+    && curl -fsSL \
+       https://github.com/rgl/lms-binaries/releases/download/v0.0.20251226/lms-2550.0.0-ubuntu-22.04.deb \
+       -o /tmp/lms.deb \
+    && dpkg -i /tmp/lms.deb 2>/dev/null; apt-get install -f -y \
+    && rm /tmp/lms.deb \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /build
-RUN git clone --depth=1 https://github.com/intel/lms.git .
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-RUN cmake -S . -B build \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DBUILD_WIN_UNIVERSAL_APP=OFF \
-    -DIGNOREDLL_DEPENDENCIES=OFF \
-    && cmake --build build -j"$(nproc)" \
-    && cmake --install build --prefix /usr/local
-
-# LMS proxies /dev/mei0 → localhost:16992 (HTTP) and localhost:16993 (HTTPS)
+# LMS proxies /dev/mei0 → localhost:16992 (HTTP) and localhost:16993 (HTTPS/TLS)
 EXPOSE 16992 16993
 
-CMD ["/usr/local/bin/lms"]
+CMD ["/entrypoint.sh"]
