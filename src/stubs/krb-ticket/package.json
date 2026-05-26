@@ -1,0 +1,7 @@
+{
+  "name": "krb-ticket",
+  "version": "1.0.4",
+  "description": "Linux stub — Kerberos not available, digest auth still works",
+  "main": "index.js",
+  "private": true
+}

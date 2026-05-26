@@ -1,0 +1,10 @@
+node_modules/
+upstream/app/
+src/imrsdk/node_modules/
+*.node
+*.dll
+*.exe
+*.msi
+*.pdb
+*.lib
+*.exp

@@ -1,0 +1,10 @@
+{
+  "name": "imrsdk",
+  "version": "1.0.4",
+  "description": "Intel AMT Redirection SDK — Linux JavaScript port",
+  "main": "index.js",
+  "private": true,
+  "dependencies": {
+    "deasync": "^0.1.31"
+  }
+}

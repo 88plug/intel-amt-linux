@@ -1,0 +1,13 @@
+{
+  "name": "imc-linux-port",
+  "version": "0.1.0",
+  "description": "Intel Manageability Commander — Linux port",
+  "private": true,
+  "scripts": {
+    "setup": "bash scripts/setup.sh",
+    "start": "bash scripts/run.sh"
+  },
+  "devDependencies": {
+    "electron": "^13.6.9"
+  }
+}
