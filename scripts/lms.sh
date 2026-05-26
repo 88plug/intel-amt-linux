@@ -54,8 +54,11 @@ case "$CMD" in
             echo "LMS not running"
         fi
         ;;
+    logs)
+        docker logs intel-lms 2>&1
+        ;;
     *)
-        echo "Usage: $0 {build|start|stop|status}"
+        echo "Usage: $0 {build|start|stop|status|logs}"
         exit 1
         ;;
 esac
