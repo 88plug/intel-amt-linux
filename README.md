@@ -41,12 +41,18 @@ from Intel's servers at setup time and is not redistributed.
 | `imrsdk.node` | PE32 Windows DLL — wraps `imrsdk.dll` | Reimplemented from Intel AMT spec (§6–7): TCP/TLS transport + SCSI/IDER engine |
 | `krb-ticket.node` | Windows Kerberos native binding | Linux stub — digest auth still works |
 | `winreg` | Windows registry | Already safe on Linux (IMC has try/catch) |
-| Electron | 8.0.3 Windows build | Electron 13 (last version with built-in `remote` API) |
+| Electron | 8.0.3 Windows build | Electron 28 (Chromium 120, TLS 1.3, `@electron/remote` shim) |
+
+**Why Electron 28?** Electron 13's Chromium 91 (2021) has confirmed TLS handshake
+failures against AMT 16.x endpoints (Intel community reports). Electron 28 ships
+Chromium 120 with TLS 1.3 and current cipher support. The `remote` module removed
+in Electron 14+ is restored via `@electron/remote` + a preload shim — no changes
+to Intel's minified JS required.
 
 **Why no `libimrsdk.so`?** Intel only shipped the IMRSDK as static `.a` files
 compiled without `-fPIC`. They cannot link into a `.so` (confirmed double-`stricmp`
-linker error from xerces bundled inside). The IDER protocol is public in Intel's
-AMT Implementation Guide §6–7 — we implemented it directly.
+linker error from xerces bundled inside). The IDER protocol is documented in Intel's
+AMT Implementation Guide §6–7 — we implemented it directly in ~350 lines of JS.
 
 ## Prerequisites
 
@@ -103,6 +109,22 @@ AMT IP can differ from the OS IP. Check your router DHCP table or run:
 # Find AMT IP if on same subnet:
 nmap -p 16992,16993 192.168.1.0/24 --open -oG - | grep 'open'
 ```
+
+## Local AMT Access (same machine)
+
+AMT runs its own TCP/IP stack on the Intel ME — the host OS cannot reach it via
+loopback without LMS (Local Manageability Service). Run the LMS Docker container
+to proxy `/dev/mei0` to `localhost:16992/16993`:
+
+```bash
+bash scripts/lms.sh build    # build image once (~5 min, Ubuntu + ACE + LMS source)
+bash scripts/lms.sh start    # starts container, binds localhost:16992/16993
+bash scripts/lms.sh stop
+bash scripts/lms.sh status
+```
+
+`run.sh` auto-starts LMS if the image exists and `/dev/mei0` is present.
+After LMS is running, connect IMC to `localhost` instead of the AMT IP.
 
 ## Architecture
 
