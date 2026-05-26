@@ -3,84 +3,101 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_DIR="$REPO/upstream/app"
-IMC_SRC="/tmp/imc-extract/extracted/Program Files/Intel/Intel Manageability Commander/resources/app"
 
-echo "=== IMC Linux Port Setup ==="
+# IMC 2.4.0 — fetch from Intel's server or Wayback Machine
+IMC_VERSION="2.4.0"
+IMC_MSI="IMCInstaller-${IMC_VERSION}.msi"
+IMC_SHA256="337609a035769f077b250b2dcc41b189d54cd86089ad08f20c3358afcd6b92b3"
+IMC_EXTRACT="/tmp/imc-extract"
+# Primary: Intel download center (requires browser/redirect; use archive as fallback)
+IMC_URL_ARCHIVE="https://web.archive.org/web/2025/https://downloadmirror.intel.com/821227/${IMC_MSI}"
 
-# ---- 1. Copy upstream app if needed ----
+echo "=== IMC Linux Port Setup (${IMC_VERSION}) ==="
+
+# ---- 0. Check tools ----
+for cmd in msiextract npm node; do
+    command -v "$cmd" &>/dev/null || { echo "Missing: $cmd (install msitools for msiextract)"; exit 1; }
+done
+
+# ---- 1. Download and extract IMC MSI ----
 if [ ! -d "$APP_DIR/script" ]; then
-    echo "[1/6] Copying IMC app from extracted MSI..."
+    MSI_PATH="${IMC_EXTRACT}/${IMC_MSI}"
+
+    if [ -f "$MSI_PATH" ]; then
+        echo "[1/6] IMC MSI already present at $MSI_PATH"
+    else
+        echo "[1/6] Downloading Intel Manageability Commander ${IMC_VERSION}..."
+        mkdir -p "$IMC_EXTRACT"
+        if ! curl -L --progress-bar -o "$MSI_PATH" "$IMC_URL_ARCHIVE"; then
+            echo "Download failed. Manually download ${IMC_MSI} from Intel Download Center"
+            echo "and place it at ${MSI_PATH}, then re-run setup."
+            exit 1
+        fi
+    fi
+
+    echo "      Verifying checksum..."
+    echo "${IMC_SHA256}  ${MSI_PATH}" | sha256sum -c - || {
+        echo "Checksum mismatch — download may be corrupted or a different version."
+        exit 1
+    }
+
+    echo "      Extracting MSI..."
+    msiextract "$MSI_PATH" -C "$IMC_EXTRACT"
+    IMC_SRC="${IMC_EXTRACT}/Program Files/Intel/Intel Manageability Commander/resources/app"
+
+    echo "      Copying app..."
     mkdir -p "$APP_DIR"
     cp -r "$IMC_SRC/." "$APP_DIR/"
-    echo "      Copied to $APP_DIR"
 else
-    echo "[1/6] Upstream app already present — skipping copy"
+    echo "[1/6] Upstream app already present — skipping download"
 fi
 
-# ---- 2. Install Electron (compatible with remote API) ----
-echo "[2/6] Installing Electron 13 (last version with remote API)..."
-cd "$APP_DIR"
-if ! command -v electron &>/dev/null || ! electron --version 2>/dev/null | grep -q "^v13"; then
-    npm install --save-dev electron@13 --no-package-lock 2>/dev/null || true
-fi
+# ---- 2. Install Electron 13 (last version with built-in remote API) ----
+echo "[2/6] Installing Electron 13..."
+cd "$REPO"
+npm install --no-audit 2>/dev/null | tail -2 || true
 
-# ---- 3. Install deasync for imrsdk sync bridge ----
-echo "[3/6] Installing deasync..."
-npm install --prefix "$REPO/src/imrsdk" deasync --no-package-lock 2>/dev/null || true
+# ---- 3. Install deasync (sync bridge for IDER async→sync) ----
+echo "[3/6] Installing deasync in app..."
+npm install --prefix "$APP_DIR" deasync --no-save --no-audit 2>/dev/null | tail -2 || true
 
 # ---- 4. Replace Windows-only native modules ----
 echo "[4/6] Replacing Windows-only native modules..."
 
-# imrsdk: replace the Windows .node binding with Linux JS implementation
 IMR_DEST="$APP_DIR/node_modules/imrsdk"
 mkdir -p "$IMR_DEST"
-cp "$REPO/src/imrsdk/index.js"               "$IMR_DEST/index.js"
-cp "$REPO/src/imrsdk/amt-ider-standalone.js" "$IMR_DEST/amt-ider-standalone.js"
+cp "$REPO/src/imrsdk/index.js"                "$IMR_DEST/index.js"
+cp "$REPO/src/imrsdk/amt-ider-standalone.js"  "$IMR_DEST/amt-ider-standalone.js"
 cp "$REPO/src/imrsdk/amt-redir-standalone.js" "$IMR_DEST/amt-redir-standalone.js"
-cp "$REPO/src/imrsdk/package.json"           "$IMR_DEST/package.json"
+cp "$REPO/src/imrsdk/package.json"            "$IMR_DEST/package.json"
 
-# Copy deasync into imrsdk node_modules
-if [ -d "$REPO/src/imrsdk/node_modules" ]; then
-    mkdir -p "$IMR_DEST/node_modules"
-    cp -r "$REPO/src/imrsdk/node_modules/." "$IMR_DEST/node_modules/"
-fi
-
-# krb-ticket: replace Windows Kerberos native binding with Linux stub
 KRB_DEST="$APP_DIR/node_modules/krb-ticket"
 mkdir -p "$KRB_DEST"
-cp "$REPO/src/stubs/krb-ticket/index.js"      "$KRB_DEST/index.js"
-cp "$REPO/src/stubs/krb-ticket/package.json"  "$KRB_DEST/package.json"
+cp "$REPO/src/stubs/krb-ticket/index.js"     "$KRB_DEST/index.js"
+cp "$REPO/src/stubs/krb-ticket/package.json" "$KRB_DEST/package.json"
 
-echo "      imrsdk  -> JS IDER engine (Apache 2.0)"
-echo "      krb-ticket -> Linux stub (digest auth still works)"
-echo "      winreg  -> already safe on Linux (try-catch in app)"
+echo "      imrsdk    → JS IDER engine (Apache 2.0)"
+echo "      krb-ticket → Linux stub (digest auth works)"
+echo "      winreg    → safe on Linux (IMC has try/catch)"
 
-# ---- 5. Install remaining npm deps ----
-echo "[5/6] Installing app dependencies (level, requirejs, winston)..."
+# ---- 5. Install remaining app deps ----
+echo "[5/6] Installing app npm deps..."
 cd "$APP_DIR"
-# Remove Windows-specific packages from package.json for npm install
-node -e "
-const fs = require('fs');
-const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-delete pkg.dependencies.imrsdk;
-delete pkg.dependencies['krb-ticket'];
-delete pkg.dependencies.winreg;
-fs.writeFileSync('package.json.linux', JSON.stringify(pkg, null, 2));
-" 2>/dev/null || true
+npm install level requirejs requirejs-text winston --no-audit 2>/dev/null | tail -2 || true
 
-npm install --prefix "$APP_DIR" level requirejs requirejs-text winston 2>/dev/null || true
-
-# ---- 6. Patch main-electron.js for modern Electron ----
-echo "[6/6] Patching main-electron.js for Electron 13..."
+# ---- 6. Patch main-electron.js for Electron 13 ----
+echo "[6/6] Patching main-electron.js..."
 if ! grep -q "enableRemoteModule" "$APP_DIR/main-electron.js" 2>/dev/null; then
-    # Enable remote module (removed in Electron 14, but Electron 13 needs explicit opt-in)
     sed -i 's/nodeIntegration: true,/nodeIntegration: true,\n            enableRemoteModule: true,/' \
-        "$APP_DIR/main-electron.js" || true
-    echo "      Patched: enableRemoteModule: true"
+        "$APP_DIR/main-electron.js"
+    echo "      Added: enableRemoteModule: true"
 else
     echo "      Already patched"
 fi
 
 echo ""
 echo "=== Setup complete ==="
-echo "Run: ./scripts/run.sh"
+echo ""
+echo "Run native:  bash scripts/run.sh"
+echo "Run docker:  bash scripts/run.sh docker"
+echo "Run VNC:     docker run --rm --network host -p 5900:5900 \$(docker build -q .)"
