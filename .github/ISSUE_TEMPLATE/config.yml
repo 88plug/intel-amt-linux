@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Wiki — Troubleshooting
+    url: https://github.com/88plug/intel-amt-linux/wiki/Troubleshooting
+    about: Check here first — common errors and fixes
+  - name: Wiki — AMT Provisioning
+    url: https://github.com/88plug/intel-amt-linux/wiki/AMT-Provisioning
+    about: Setting up AMT for the first time
+  - name: AUR Comments
+    url: https://aur.archlinux.org/packages/intel-amt-linux
+    about: Arch/Manjaro install issues

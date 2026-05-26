@@ -1,18 +1,62 @@
+<div align="center">
+
 # intel-amt-linux
 
-Native Linux GUI + CLI for Intel AMT / vPro out-of-band management. No Windows. No VM.
+**Native Linux GUI + CLI for Intel AMT / vPro out-of-band management**
 
-The only Linux-native launcher for Intel® Manageability Commander — the one GUI that
-exposes the full Intel AMT / vPro feature set: power control, SOL console, IDER
-(virtual media boot), KVM, audit log, WiFi, TLS provisioning. Intel never shipped a
-Linux build. This port fixes that. Also includes `amt-net` CLI for scripting
-AMT_EthernetPortSettings (DHCP / static IP) via WS-Man.
+[![CI](https://img.shields.io/github/actions/workflow/status/88plug/intel-amt-linux/ci.yml?style=flat-square&label=ci)](https://github.com/88plug/intel-amt-linux/actions/workflows/ci.yml)
+[![AUR](https://img.shields.io/aur/version/intel-amt-linux?style=flat-square)](https://aur.archlinux.org/packages/intel-amt-linux)
+[![Release](https://img.shields.io/github/v/release/88plug/intel-amt-linux?style=flat-square)](https://github.com/88plug/intel-amt-linux/releases)
+[![License](https://img.shields.io/github/license/88plug/intel-amt-linux?style=flat-square)](LICENSE)
 
-MeshCommander alternative for Linux. Works where `amttool` and `wsmancli` break (AMT ≥ 9.0).
+Power control · KVM · Serial-over-LAN · IDER virtual media · WiFi · Audit log — all from Linux.
 
-> **Not affiliated with or endorsed by Intel Corporation.**
-> Intel®, Intel vPro®, and Intel® Manageability Commander are trademarks of Intel
-> Corporation or its subsidiaries.
+**MeshCommander / IPMI / iLO alternative for Intel vPro machines.**
+
+*Not affiliated with or endorsed by Intel Corporation.*
+
+</div>
+
+---
+
+## Install
+
+```bash
+# Arch / Manjaro
+yay -S intel-amt-linux
+
+# All distros
+git clone https://github.com/88plug/intel-amt-linux
+cd intel-amt-linux
+npm run setup && npm start
+```
+
+> **Requires:** Node.js 18+, npm, `msitools` — see [Prerequisites](#prerequisites)
+
+---
+
+## What it does
+
+Intel® Manageability Commander is the only GUI that exposes the full Intel AMT / vPro feature set. Intel never shipped a Linux build. This port fixes that — ~350 lines of Linux glue replacing Windows-only native modules, with the IMC binary downloaded from Intel's servers at setup time.
+
+## Feature Status
+
+| Feature | Status |
+|---|---|
+| Power on/off/reset/cycle | ✅ Full |
+| Boot options (PXE, USB, DVD) | ✅ Full |
+| Serial-over-LAN (SOL) console | ✅ Full |
+| IDER (virtual media — ISO/floppy boot) | ✅ Full |
+| System inventory / AMT version | ✅ Full |
+| Audit log | ✅ Full |
+| TLS certificate management | ✅ Full |
+| WiFi profile management | ✅ Full |
+| OS keyring credential vault | ✅ Full |
+| AMT NIC config CLI (`amt-net`) | ✅ Full |
+| KVM remote desktop | ⚠️ CCM mode requires user consent; ACM = full access |
+| Kerberos domain auth | ❌ Windows-only — digest auth works |
+
+---
 
 ## Compatible Hardware
 
@@ -39,47 +83,26 @@ Works on any Intel vPro Enterprise system with AMT 6.0 or later:
 - Xeon Scalable servers (use BMC/IPMI/Redfish, not AMT)
 - vPro Essentials (Alder Lake+, in-band only — no OOB redirection)
 
-## What This Port Changes
-
-This repo contains only our Linux glue (~350 lines). IMC itself is downloaded
-from Intel's servers at setup time and is not redistributed.
-
-| Component | Problem | Fix |
-|---|---|---|
-| `imrsdk.node` | PE32 Windows DLL — wraps `imrsdk.dll` | Reimplemented from Intel AMT spec (§6–7): TCP/TLS transport + SCSI/IDER engine |
-| `krb-ticket.node` | Windows Kerberos native binding | Linux stub — digest auth still works |
-| `winreg` | Windows registry | Already safe on Linux (IMC has try/catch) |
-| Electron | 8.0.3 Windows build | Electron 28 (Chromium 120, TLS 1.3, `@electron/remote` shim) |
-
-**Why Electron 28?** Electron 13's Chromium 91 (2021) has confirmed TLS handshake
-failures against AMT 16.x endpoints (Intel community reports). Electron 28 ships
-Chromium 120 with TLS 1.3 and current cipher support. The `remote` module removed
-in Electron 14+ is restored via `@electron/remote` + a preload shim — no changes
-to Intel's minified JS required.
-
-**Why no `libimrsdk.so`?** Intel only shipped the IMRSDK as static `.a` files
-compiled without `-fPIC`. They cannot link into a `.so` (confirmed double-`stricmp`
-linker error from xerces bundled inside). The IDER protocol is documented in Intel's
-AMT Implementation Guide §6–7 — we implemented it directly in ~350 lines of JS.
+---
 
 ## Prerequisites
 
 - Linux x86-64 (tested: Manjaro, Debian/Ubuntu, Fedora)
 - Node.js 18+, npm
 - `msitools` (`msiextract`) — for unpacking the Intel MSI
-  ```
+  ```bash
   # Arch/Manjaro:  sudo pacman -S msitools
   # Debian/Ubuntu: sudo apt install msitools
   # Fedora:        sudo dnf install msitools
   ```
-- Docker (optional, for container run)
+- Docker (optional, for container run or LMS proxy)
 
 ## Quick Start
 
 ```bash
 git clone https://github.com/88plug/intel-amt-linux
 cd intel-amt-linux
-npm run setup    # downloads IMC from Intel, installs deps, applies Linux patches
+npm run setup    # downloads Intel IMC 2.4.0, installs deps, applies Linux patches
 npm start        # launches IMC natively
 ```
 
@@ -98,8 +121,8 @@ bash scripts/run.sh docker
 
 **Docker — headless, VNC on port 5900:**
 ```bash
-docker build -t imc-linux .
-docker run --rm --network host -p 5900:5900 imc-linux
+docker build -t intel-amt-linux .
+docker run --rm --network host -p 5900:5900 intel-amt-linux
 # connect: vncviewer localhost:5900
 ```
 
@@ -112,9 +135,8 @@ docker run --rm --network host -p 5900:5900 imc-linux
 5. Password: your AMT provisioning password
 6. TLS: **Yes** (port 16993) — recommended; or No (port 16992) for testing
 
-AMT IP can differ from the OS IP. Check your router DHCP table or run:
 ```bash
-# Find AMT IP if on same subnet:
+# Find AMT IPs on your subnet:
 nmap -p 16992,16993 192.168.1.0/24 --open -oG - | grep 'open'
 ```
 
@@ -125,7 +147,7 @@ loopback without LMS (Local Manageability Service). Run the LMS Docker container
 to proxy `/dev/mei0` to `localhost:16992/16993`:
 
 ```bash
-bash scripts/lms.sh build    # build image once (~5 min, Ubuntu + ACE + LMS source)
+bash scripts/lms.sh build    # build image once
 bash scripts/lms.sh start    # starts container, binds localhost:16992/16993
 bash scripts/lms.sh stop
 bash scripts/lms.sh status
@@ -134,53 +156,16 @@ bash scripts/lms.sh status
 `run.sh` auto-starts LMS if the image exists and `/dev/mei0` is present.
 After LMS is running, connect IMC to `localhost` instead of the AMT IP.
 
-## Architecture
-
-```
-src/
-├── imrsdk/
-│   ├── amt-protocol.js   # AMT Redirection Protocol transport
-│   │                     # TCP/TLS connect → HTTP Digest auth → binary AMT frames
-│   ├── amt-ider.js       # IDER protocol: SCSI handler + disk image serving
-│   │                     # Handles READ10, INQUIRY, MODE_SENSE, READ_CAPACITY, READ_TOC
-│   └── index.js          # Sync API wrapper (deasync) — matches imrsdk.node contract
-├── stubs/
-│   └── krb-ticket/
-│       └── index.js      # Kerberos stub: retCode:1, falls back to digest auth
-└── tools/
-    └── amt-net.js        # CLI: read/write AMT_EthernetPortSettings via WS-Man
-                          # Usage: node amt-net.js <get|dhcp|static> <host> <user> <pass>
-```
-
-## Feature Status
-
-| Feature | Status |
-|---|---|
-| Power on/off/reset/cycle | ✅ Full |
-| Boot options (PXE, USB, DVD) | ✅ Full |
-| Serial-over-LAN (SOL) console | ✅ Full |
-| IDER (virtual media — ISO/floppy boot) | ✅ Full |
-| System inventory / AMT version | ✅ Full |
-| Audit log | ✅ Full |
-| TLS certificate management | ✅ Full |
-| WiFi profile management | ✅ Full |
-| KVM remote desktop | ⚠️ CCM mode requires user consent; ACM mode = full access |
-| Kerberos domain auth | ❌ Windows only — digest auth works |
-| Windows registry credential storage | ❌ Replaced — OS keyring via `safeStorage` (see credential vault below) |
+> **Note:** LMS proxies WS-Man ports 16992/16993 only. IDER/SOL (Redirection Protocol, 16994/16995) are OOB-only — they require direct network access to the AMT IP from a separate machine.
 
 ## Credential Vault
 
-Passwords are encrypted with the OS keyring (libsecret / KWallet / macOS Keychain) via
-Electron's `safeStorage` API. When you connect to an AMT host, a "Remember credentials"
-checkbox appears in the auth dialog — check it and credentials auto-fill on next launch.
-No plaintext storage. Falls back gracefully if no keyring is available.
+Passwords are encrypted with the OS keyring (libsecret / KWallet) via Electron `safeStorage`. When the auth dialog appears, check **"Remember credentials"** — credentials auto-fill on next connection. No plaintext storage.
 
 ## AMT Network CLI
 
-`src/tools/amt-net.js` — standalone WS-Man tool for reading and scripting AMT NIC config:
-
 ```bash
-# Read current settings
+# Read current AMT NIC settings
 node src/tools/amt-net.js get 192.168.1.106 admin <pass>
 
 # Switch AMT NIC to DHCP
@@ -193,13 +178,51 @@ node src/tools/amt-net.js static 192.168.1.106 admin <pass> 10.0.0.5 255.255.255
 node src/tools/amt-net.js get 192.168.1.106 admin <pass> --tls
 ```
 
+## Architecture
+
+```
+src/
+├── imrsdk/
+│   ├── amt-protocol.js   # AMT Redirection Protocol transport
+│   │                     # TCP/TLS connect → HTTP Digest auth → binary AMT frames
+│   │                     # IPv6 RFC 2732, CSME 16.1+ TLS auto-upgrade (16994→16995)
+│   ├── amt-ider.js       # IDER/SCSI engine: READ10, INQUIRY, MODE_SENSE, READ_CAPACITY
+│   └── index.js          # Sync API wrapper (deasync) — matches imrsdk.node contract
+├── stubs/
+│   └── krb-ticket/       # Kerberos stub → digest auth fallback
+├── preload.js            # @electron/remote shim + credential vault MutationObserver
+└── tools/
+    └── amt-net.js        # CLI: read/write AMT_EthernetPortSettings via WS-Man
+```
+
+## What This Port Changes
+
+This repo contains only Linux glue (~350 lines). IMC itself is downloaded from Intel's servers at setup time and is not redistributed.
+
+| Component | Problem | Fix |
+|---|---|---|
+| `imrsdk.node` | PE32 Windows DLL | Reimplemented from Intel AMT spec (§6–7): TCP/TLS transport + SCSI/IDER engine |
+| `krb-ticket.node` | Windows Kerberos native binding | Linux stub — digest auth still works |
+| `winreg` | Windows registry | Already safe on Linux (IMC has try/catch) |
+| Electron | 8.0.3 Windows build | Electron 28 (Chromium 120, TLS 1.3, `@electron/remote` shim) |
+
+**Why Electron 28?** Electron 13's Chromium 91 has confirmed TLS handshake failures against AMT 16.x endpoints. Electron 28 ships Chromium 120 with TLS 1.3. The `remote` module removed in Electron 14+ is restored via `@electron/remote` + a preload shim.
+
+**Why no `libimrsdk.so`?** Intel shipped IMRSDK as static `.a` files compiled without `-fPIC` — confirmed `double-stricmp` linker error. The IDER protocol is documented in Intel's AMT Implementation Guide §6–7; we implemented it directly in JS.
+
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Bug reports need: AMT version, OEM/chipset, distro, `/dev/mei0` presence, and the exact error.
+
+## Security
+
+AMT credential handling and TLS issues: see [SECURITY.md](SECURITY.md).
+
 ## License
 
 Our code (this repo): MIT — see [LICENSE](LICENSE).
 Intel® Manageability Commander: proprietary Intel software, downloaded from Intel's servers at setup time.
 
-## Topics
-
-`intel-amt` `amt` `vpro` `active-management-technology` `out-of-band` `linux` `gui`
-`remote-management` `kvm` `serial-over-lan` `wsman` `ider` `mei` `lms`
-`meshcommander` `manageability-commander` `ipmi-alternative` `ilo-alternative`
+Intel®, Intel vPro®, and Intel® Manageability Commander are trademarks of Intel Corporation or its subsidiaries.

@@ -1,0 +1,85 @@
+name: Bug Report
+description: Something not working — include hardware context
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        AMT bugs are hardware-specific. The more context you provide, the faster we can help.
+
+  - type: input
+    id: amt_version
+    attributes:
+      label: AMT Version
+      description: Run `rpc amtinfo` or check MEBx → Intel AMT Configuration
+      placeholder: "16.1.27"
+    validations:
+      required: true
+
+  - type: input
+    id: hardware
+    attributes:
+      label: OEM + Chipset
+      placeholder: "Lenovo ThinkPad P16, Intel Q670"
+    validations:
+      required: true
+
+  - type: input
+    id: distro
+    attributes:
+      label: Distro + Kernel
+      description: "`uname -a`"
+      placeholder: "Manjaro 24.0, kernel 6.6.128"
+    validations:
+      required: true
+
+  - type: input
+    id: node_version
+    attributes:
+      label: Node.js version
+      description: "`node --version`"
+      placeholder: "v20.11.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: connection_mode
+    attributes:
+      label: Connection mode
+      options:
+        - Direct OOB (AMT IP, remote machine)
+        - LMS / localhost (same machine via /dev/mei0)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: tls
+    attributes:
+      label: TLS enabled?
+      options:
+        - "Yes (port 16993)"
+        - "No (port 16992)"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: mei
+    attributes:
+      label: "/dev/mei0 present?"
+      options:
+        - label: "`ls -la /dev/mei0` shows the device"
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Include the exact error message and full console output
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true

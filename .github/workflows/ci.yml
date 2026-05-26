@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  smoke:
+    name: Smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install root deps (Electron)
+        run: npm install --no-audit
+
+      - name: Install imrsdk deps (deasync)
+        run: npm install --prefix src/imrsdk --no-audit
+
+      - name: Run smoke test
+        run: npm test
+
+      - name: Lint PKGBUILD
+        run: |
+          if command -v namcap &>/dev/null; then
+            namcap packaging/aur/PKGBUILD
+          else
+            echo "namcap not available on Ubuntu — skipping"
+          fi
+
+  docker-lint:
+    name: Dockerfile lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: lms/Dockerfile
+          failure-threshold: warning

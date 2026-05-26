@@ -1,12 +1,32 @@
 {
   "name": "intel-amt-linux",
   "version": "0.1.0",
-  "description": "Native Linux GUI + CLI for Intel AMT / vPro out-of-band management — unofficial Linux launcher for Intel Manageability Commander. MeshCommander alternative.",
-  "keywords": ["intel-amt", "amt", "vpro", "active-management-technology", "out-of-band", "linux", "kvm", "serial-over-lan", "wsman", "ider", "remote-management", "meshcommander", "ipmi-alternative", "ilo-alternative"],
+  "description": "Native Linux GUI + CLI for Intel AMT / vPro out-of-band management — unofficial Linux launcher for Intel Manageability Commander. MeshCommander / IPMI alternative.",
+  "keywords": [
+    "intel-amt", "amt", "vpro", "active-management-technology",
+    "out-of-band", "linux", "kvm", "serial-over-lan", "wsman",
+    "ider", "remote-management", "meshcommander", "ipmi-alternative",
+    "ilo-alternative", "electron", "manageability"
+  ],
+  "author": "88plug <https://github.com/88plug>",
+  "license": "MIT",
+  "homepage": "https://github.com/88plug/intel-amt-linux#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/88plug/intel-amt-linux.git"
+  },
+  "bugs": {
+    "url": "https://github.com/88plug/intel-amt-linux/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
   "private": true,
   "scripts": {
     "setup": "bash scripts/setup.sh",
-    "start": "bash scripts/run.sh"
+    "start": "bash scripts/run.sh",
+    "test": "node test/smoke.js"
   },
   "devDependencies": {
     "electron": "^28.3.3"

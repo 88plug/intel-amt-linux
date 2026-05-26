@@ -1,0 +1,41 @@
+name: Feature Request
+description: Suggest an improvement or new capability
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      placeholder: "I can't do X because..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Which part of the project?
+      options:
+        - AMT Redirection Protocol (imrsdk)
+        - IDER / virtual media
+        - Credential vault
+        - LMS / same-machine access
+        - AMT network CLI (amt-net.js)
+        - Setup / packaging
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: hw_confirmed
+    attributes:
+      label: Confirmed on real AMT hardware?
+      options:
+        - label: I have tested or can test this on real vPro hardware
