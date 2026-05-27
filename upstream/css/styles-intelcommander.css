@@ -1,0 +1,98 @@
+@import url("styles-base-intelcommander.css");
+
+.header {
+    height: 90px;
+    width: 100%;
+    background: linear-gradient(to top, rgba(0,60,113,1) 0%, rgba(0,113,197,1)  100%);
+    /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+}
+
+.fullcell {
+    position: absolute;
+    top: 108px;
+    height: calc(100% - 108px);
+    width: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+.maincell {
+    float: right;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+}
+
+.navbar {
+    float: left;
+    width: 160px;
+    height: 100%;
+    margin-left: -160px;
+    box-sizing: border-box;
+    background: #484848;
+}
+
+.navbar input {
+    margin: 10px;
+    width: 140px;
+}
+
+.navBarItem {
+    padding:  5px 0 5px 10px;
+    color: white;
+    font-size: small;
+}
+
+.navBarItem:hover {
+    background: #252525;
+    cursor: pointer;
+}
+
+.navBarItemSelected {
+    background: #252525;
+    border-top: #BBBBBB75 solid 1px;
+    border-bottom: #BBBBBB75 solid 1px;
+}
+
+.navBarLoading {
+    text-align:center;
+    padding:8px;
+    color:white;
+    font-weight:bold
+}
+
+.itemViewLoading {
+    margin: 15px;
+}
+
+.tlsNotification {
+    text-align:center;
+    color:darkblue;
+    cursor:pointer;
+    padding: 5px;
+    margin-bottom:5px;
+    background:#74d25d
+}
+
+.flexContainerSpaceBetweenGray{
+    display: flex;
+    background-color: #ccc;
+    justify-content: space-between;
+}
+
+.flexContainer{
+    display: flex;
+    background-color: #ccc;
+}
+
+.toolbarElementStyling input,
+.toolbarElementStyling span,
+.toolbarElementStyling select{
+    padding: 2px 5px;
+    margin: 3px;
+}
+
+.remoteDesktopView .container input,
+.remoteDesktopView .container span {
+    padding: 0 5px;
+    margin: 4px;
+}
