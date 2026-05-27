@@ -1,0 +1,43 @@
+name: Auto-release
+
+# Every push to main auto-tags the next patch version, which triggers AUR Deploy.
+# Skip release with: commit message containing "[skip release]" or author == 88plug-bot.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: "github.actor != '88plug-bot' && !contains(github.event.head_commit.message, '[skip release]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute next patch version
+        id: ver
+        run: |
+          LATEST=$(git tag -l 'v*' --sort=-v:refname | head -1)
+          if [ -z "$LATEST" ]; then
+            NEXT="v0.1.0"
+          else
+            VER=${LATEST#v}
+            MAJ=$(echo "$VER" | cut -d. -f1)
+            MIN=$(echo "$VER" | cut -d. -f2)
+            PATCH=$(echo "$VER" | cut -d. -f3)
+            NEXT="v${MAJ}.${MIN}.$((PATCH+1))"
+          fi
+          echo "tag=$NEXT" >> "$GITHUB_OUTPUT"
+          echo "Next: $NEXT"
+
+      - name: Tag and push
+        run: |
+          git config user.name  "88plug-bot"
+          git config user.email "andrew@88plug.com"
+          git tag ${{ steps.ver.outputs.tag }}
+          git push origin ${{ steps.ver.outputs.tag }}
