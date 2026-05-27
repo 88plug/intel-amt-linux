@@ -15,7 +15,7 @@ jobs:
     if: "github.actor != '88plug-bot' && !contains(github.event.head_commit.message, '[skip release]')"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
