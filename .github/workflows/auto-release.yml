@@ -1,7 +1,7 @@
 name: Auto-release
 
-# Every push to main auto-tags the next patch version, which triggers AUR Deploy.
-# Skip release with: commit message containing "[skip release]" or author == 88plug-bot.
+# Every push to main auto-tags the next patch and dispatches AUR Deploy directly.
+# Skip with: commit message containing "[skip release]" or author == 88plug-bot.
 
 on:
   push:
@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   release:
@@ -18,7 +19,6 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          token: ${{ secrets.GH_PUSH_TOKEN }}
 
       - name: Compute next patch version
         id: ver
@@ -34,7 +34,7 @@ jobs:
             NEXT="v${MAJ}.${MIN}.$((PATCH+1))"
           fi
           echo "tag=$NEXT" >> "$GITHUB_OUTPUT"
-          echo "Next: $NEXT"
+          echo "ver=${NEXT#v}" >> "$GITHUB_OUTPUT"
 
       - name: Tag and push
         run: |
@@ -42,3 +42,8 @@ jobs:
           git config user.email "andrew@88plug.com"
           git tag ${{ steps.ver.outputs.tag }}
           git push origin ${{ steps.ver.outputs.tag }}
+
+      - name: Dispatch AUR Deploy (bypasses GITHUB_TOKEN downstream-trigger limit)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run aur-deploy.yml -f version=${{ steps.ver.outputs.ver }}
