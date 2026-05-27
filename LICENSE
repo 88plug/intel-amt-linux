@@ -19,10 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-IMPORTANT — Intel Manageability Commander:
-This repository does NOT contain Intel Manageability Commander (IMC).
-The setup script downloads IMC directly from Intel's servers. IMC is
-proprietary Intel software; all rights remain with Intel Corporation.

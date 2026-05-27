@@ -1,0 +1,18 @@
+intel-amt-linux
+Copyright (c) 2026 Andrew Mello <andrew@88plug.com>
+
+This product includes work licensed under MIT — see LICENSE.
+
+---
+
+Intel Manageability Commander attribution
+------------------------------------------
+
+This repository does NOT contain Intel Manageability Commander (IMC).
+
+The setup script downloads IMC directly from Intel's servers at first run.
+IMC is proprietary Intel software; all rights remain with Intel Corporation.
+
+Intel®, Intel vPro®, and Intel® Manageability Commander are trademarks of
+Intel Corporation or its subsidiaries. This project is not affiliated with
+or endorsed by Intel Corporation.
