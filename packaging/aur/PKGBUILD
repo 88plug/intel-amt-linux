@@ -5,7 +5,7 @@ pkgrel=2
 pkgdesc="Linux GUI+CLI for Intel AMT/vPro: KVM, SOL, IDER, power control. IPMI/iLO/MeshCommander alt."
 arch=('x86_64')
 url="https://github.com/88plug/intel-amt-linux"
-license=('MIT')
+license=('custom:FSL-1.1-ALv2')
 depends=('nodejs' 'npm' 'msitools' 'nss' 'libxtst' 'libxss' 'gtk3' 'alsa-lib')
 optdepends=(
     'docker: LMS container for same-machine AMT access via /dev/mei0'
@@ -32,7 +32,7 @@ package() {
     # Remove native module build artifacts — prebuilt binaries handle platform support
     rm -rf "$pkgdir/opt/$pkgname/src/imrsdk/node_modules/deasync/build"
 
-    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+    install -Dm644 LICENSE.md "$pkgdir/usr/share/licenses/$pkgname/LICENSE.md"
 
     # Launcher
     install -dm755 "$pkgdir/usr/bin"
