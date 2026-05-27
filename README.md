@@ -8,6 +8,7 @@
 [![AUR](https://img.shields.io/aur/version/intel-amt-linux?style=flat-square)](https://aur.archlinux.org/packages/intel-amt-linux)
 [![Release](https://img.shields.io/github/v/release/88plug/intel-amt-linux?style=flat-square)](https://github.com/88plug/intel-amt-linux/releases)
 [![License](https://img.shields.io/github/license/88plug/intel-amt-linux?style=flat-square)](LICENSE)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/88plug/intel-amt-linux)
 
 Power control · KVM · Serial-over-LAN · IDER virtual media · WiFi · Audit log — all from Linux.
 
