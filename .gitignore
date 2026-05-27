@@ -1,5 +1,5 @@
 node_modules/
-upstream/app/
+upstream/
 src/imrsdk/node_modules/
 *.node
 *.dll
